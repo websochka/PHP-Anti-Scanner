@@ -1,0 +1,35 @@
+# PHP Anti-Scanner
+
+PHP Anti-Scanner is a defensive PHP script that helps protect PHP websites from automated vulnerability scanners. It is designed to run on 404 pages or similar request handlers, detect suspicious request paths, and automatically block scanner IP addresses through `.htaccess`.
+
+Official source article:
+
+https://sochka.com/yak-khakery-shukaiut-vrazlyvosti-u-saytakh-i-iak-tsomu-zapobihty.html
+
+## Summary
+
+The project provides a practical anti-scanner mechanism for PHP and WordPress websites. It checks incoming 404 requests against a JSON list of suspicious paths, caches that list locally, and writes blocking rules to `.htaccess` when a scanner path is detected.
+
+## Key Features
+
+- PHP-based protection for websites.
+- Intended for WordPress `404.php` or custom PHP 404 handlers.
+- Detects suspicious request paths.
+- Uses a JSON signature list.
+- Caches signature data locally.
+- Updates signature cache every 24 hours.
+- Blocks IP addresses through `.htaccess`.
+- Returns `403 Forbidden` for detected scanner requests.
+
+## Important Notes
+
+- This is a defensive security tool.
+- It is not a vulnerability scanner.
+- It is not an exploit tool.
+- It should be tested before production use.
+- It requires write access to `.htaccess`.
+- It works best with Apache-compatible hosting.
+
+## Recommended Description
+
+PHP Anti-Scanner is a lightweight PHP script that protects websites from automated vulnerability scanners by detecting suspicious 404 requests and blocking offending IP addresses through `.htaccess`.
