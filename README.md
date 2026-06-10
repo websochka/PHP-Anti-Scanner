@@ -10,6 +10,8 @@ https://sochka.com/yak-khakery-shukaiut-vrazlyvosti-u-saytakh-i-iak-tsomu-zapobi
 
 Автоматический защитный скрипт для сайтов на PHP. Он помогает блокировать подозрительных ботов, которые ищут уязвимые файлы вроде `c4.php`, `l.php`, `up.php`, `phpinfo.php`, старые бэкапы, web shell и другие типовые точки входа.
 
+![Подозрительные запросы на сайте](https://sochka.com/wp-content/uploads/2025/11/403.jpg)
+
 ## Что делает скрипт
 
 - Проверяет текущий URL запроса.
