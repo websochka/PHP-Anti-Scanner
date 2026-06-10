@@ -24,7 +24,7 @@ https://sochka.com/yak-khakery-shukaiut-vrazlyvosti-u-saytakh-i-iak-tsomu-zapobi
 
 ## Когда это полезно
 
-Скрипт полезен, если в access-логах сайта регулярно появляются запросы вида:
+Скрипт полезен, если в access-логах сайта регулярно появляются множественные запросы вида:
 
 ```text
 GET /667.php HTTP/1.0
