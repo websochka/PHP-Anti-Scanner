@@ -1,0 +1,15 @@
+# Local cache
+src/suspicious-paths.json
+
+# Logs
+*.log
+logs/
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Temporary source dumps
+source-page.html
