@@ -6,135 +6,63 @@
  * Подходит для подключения в начале 404.php, особенно на WordPress-сайтах.
  */
 
-declare(strict_types=1);
+<?php
 
-$jsonUrl = 'https://shell.seotools.workers.dev';
-$localFile = __DIR__ . '/suspicious-paths.json';
-$cacheLifetime = 24 * 60 * 60;
-$htaccessFile = rtrim((string) ($_SERVER['DOCUMENT_ROOT'] ?? ''), '/') . '/.htaccess';
+$json_url = 'https://shell.seotools.workers.dev'; // URL к базе JSON-файла
+$local_file = __DIR__ . '/suspicious-paths.json'; // Путь к локальному файлу
+$cache_lifetime = 24 * 60 * 60; // 1 день в секундах
 
-function anti_scanner_get_client_ip(): string
-{
-    $ip = $_SERVER['HTTP_CF_CONNECTING_IP']
-        ?? $_SERVER['HTTP_X_FORWARDED_FOR']
-        ?? $_SERVER['REMOTE_ADDR']
-        ?? '';
+// Путь к корневому .htaccess
+$htaccess_file = rtrim($_SERVER['DOCUMENT_ROOT'], '/') . '/.htaccess';
+// Проверка, нужно ли обновить локальный файл
+$need_update = !file_exists($local_file) || (time() - filemtime($local_file) > $cache_lifetime);
 
-    if (strpos($ip, ',') !== false) {
-        $ip = trim(explode(',', $ip)[0]);
-    }
+if ($need_update) {
+// Скачиваем
+    $json_data = @file_get_contents($json_url);
 
-    return filter_var($ip, FILTER_VALIDATE_IP) ? $ip : '';
-}
-
-function anti_scanner_load_paths(string $jsonUrl, string $localFile, int $cacheLifetime): array
-{
-    $needUpdate = !file_exists($localFile) || (time() - (int) filemtime($localFile) > $cacheLifetime);
-
-    if ($needUpdate) {
-        $jsonData = @file_get_contents($jsonUrl);
-
-        if (is_string($jsonData) && $jsonData !== '') {
-            @file_put_contents($localFile, $jsonData, LOCK_EX);
+    if ($json_data !== false && !empty($json_data)) {
+        file_put_contents($local_file, $json_data);
+    } else {
+        if (file_exists($local_file)) {
+            $json_data = file_get_contents($local_file);
+        } else {
+            die('Error');
         }
     }
-
-    if (!file_exists($localFile)) {
-        return [];
-    }
-
-    $jsonData = file_get_contents($localFile);
-    $paths = json_decode((string) $jsonData, true);
-
-    return is_array($paths) ? $paths : [];
+} else {
+    $json_data = file_get_contents($local_file);
 }
 
-function anti_scanner_get_request_path(): string
-{
-    $requestUri = (string) ($_SERVER['REQUEST_URI'] ?? '');
-    $path = parse_url($requestUri, PHP_URL_PATH);
+// Преобразовываем JSON в PHP-массив
+$suspicious_paths = json_decode($json_data, true);
 
-    return is_string($path) ? $path : $requestUri;
+if (!is_array($suspicious_paths)) {
+die('Ошибка декодирования JSON.');
 }
 
-function anti_scanner_htaccess_block_exists(string $content): bool
-{
-    return strpos($content, '# BEGIN PHP Anti-Scanner') !== false
-        && strpos($content, '# END PHP Anti-Scanner') !== false;
-}
+// Получаем URI
+$request_uri = $_SERVER['REQUEST_URI'];
 
-function anti_scanner_extract_blocked_ips(string $content): array
-{
-    preg_match_all('/Deny from\s+([0-9a-fA-F:\.]+)/', $content, $matches);
-    return array_unique($matches[1] ?? []);
-}
+if (in_array($request_uri, $suspicious_paths)) {
+    // получаем IP хакера
+    $ban = htmlspecialchars(trim($_SERVER['REMOTE_ADDR']), ENT_QUOTES);
+    $ban_string = "deny from " . $ban;
 
-function anti_scanner_build_block(array $ips): string
-{
-    $lines = [
-        '# BEGIN PHP Anti-Scanner',
-        '<IfModule mod_authz_core.c>',
-        '    <RequireAll>',
-        '        Require all granted',
-    ];
-
-    foreach ($ips as $ip) {
-        $lines[] = '        Require not ip ' . $ip;
+    // Если .htaccess нет — создаем
+    if (!file_exists($htaccess_file)) {
+        file_put_contents($htaccess_file, "order allow,deny\nallow from all\n");
     }
 
-    $lines[] = '    </RequireAll>';
-    $lines[] = '</IfModule>';
-    $lines[] = '<IfModule !mod_authz_core.c>';
-    $lines[] = '    Order allow,deny';
-    $lines[] = '    Allow from all';
+    // Проверяем дубли IP
+    $current_htaccess_content = file_get_contents($htaccess_file);
 
-    foreach ($ips as $ip) {
-        $lines[] = '    Deny from ' . $ip;
+    if (strpos($current_htaccess_content, $ban_string) === false) {
+        file_put_contents($htaccess_file, $ban_string . PHP_EOL, FILE_APPEND);
     }
 
-    $lines[] = '</IfModule>';
-    $lines[] = '# END PHP Anti-Scanner';
-
-    return implode(PHP_EOL, $lines) . PHP_EOL;
-}
-
-function anti_scanner_block_ip(string $htaccessFile, string $ip): bool
-{
-    if ($ip === '') {
-        return false;
-    }
-
-    $content = file_exists($htaccessFile) ? (string) file_get_contents($htaccessFile) : '';
-    $blockedIps = anti_scanner_extract_blocked_ips($content);
-
-    if (in_array($ip, $blockedIps, true)) {
-        return true;
-    }
-
-    $blockedIps[] = $ip;
-    $block = anti_scanner_build_block($blockedIps);
-
-    if (anti_scanner_htaccess_block_exists($content)) {
-        $content = preg_replace(
-            '/# BEGIN PHP Anti-Scanner.*?# END PHP Anti-Scanner\s*/s',
-            $block,
-            $content
-        );
-    } else {
-        $content = rtrim($content) . PHP_EOL . PHP_EOL . $block;
-    }
-
-    return file_put_contents($htaccessFile, $content, LOCK_EX) !== false;
-}
-
-$suspiciousPaths = anti_scanner_load_paths($jsonUrl, $localFile, $cacheLifetime);
-$requestPath = anti_scanner_get_request_path();
-
-if (in_array($requestPath, $suspiciousPaths, true)) {
-    anti_scanner_block_ip($htaccessFile, anti_scanner_get_client_ip());
-
-    header('HTTP/1.1 403 Forbidden');
-    header('Content-Type: text/plain; charset=UTF-8');
-    echo 'Access forbidden. Your IP has been blocked.';
+    // Возвращаем 403
+    header("HTTP/1.1 403 Forbidden");
+    echo "Access forbidden. Your IP has been blocked.";
     exit;
-}
+} 
