@@ -5,7 +5,6 @@
  * Автоматически блокирует IP-адреса, которые обращаются к подозрительным URL.
  * Подходит для подключения в начале 404.php, особенно на WordPress-сайтах.
  */
-
 $json_url = 'https://shell.seotools.workers.dev'; // URL к базе JSON-файла
 $local_file = __DIR__ . '/suspicious-paths.json'; // Путь к локальному файлу
 $cache_lifetime = 24 * 60 * 60; // 1 день в секундах
